@@ -1,8 +1,8 @@
 from enum import Enum
 from typing import Optional
-from sqlalchemy import String,ForeignKey
+from sqlalchemy import String,ForeignKey,DateTime
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
-
+from datetime import datetime
 class Base(DeclarativeBase):
     pass
 
@@ -10,6 +10,10 @@ class UserRole(str,Enum):
     STUDENT = 'Student'
     STAFF = 'Staff'
     ADMIN = 'Admin'
+
+class Visible(str,Enum):
+    IDENTIFIED = 'Identified'
+    ANONYMOUS = 'Anonymous'
 
 class User(Base):
     __tablename__ = 'users'
@@ -23,6 +27,19 @@ class Greivances(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     description: Mapped[str]
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
+    visibility: Mapped[Visible]
+    token: Mapped[Optional[str]] = mapped_column(String(64),nullable = True, unique=True)
+    status: Mapped[str] = mapped_column(String, default="Submitted", nullable=False)
+
+class AuditLog(Base):
+    __tablename__ = 'audit_log'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    complaint_id:Mapped[int] = mapped_column() 
+    old_status: Mapped[str] = mapped_column()
+    new_status: Mapped[str] = mapped_column()
+    timestamp: Mapped[datetime] = mapped_column(DateTime,default=datetime.utcnow)
+    prev_hash: Mapped[str] = mapped_column(unique=True)
+    curr_hash: Mapped[str] = mapped_column(unique=True)
 
 # To verify my models
 if __name__ == "__main__":
@@ -50,7 +67,8 @@ if __name__ == "__main__":
             session.commit()
             test_query = Greivances(
                 description= "Wifi LAN disturbance",
-                user_id = test_sub.id
+                user_id = test_sub.id,
+                visibility = "Identified"
             )
             session.add(test_query)
             session.commit()

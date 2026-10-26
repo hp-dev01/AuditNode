@@ -1,0 +1,29 @@
+classDiagram
+    class ComplaintLog {
+        +String ticket_id
+        +String tracking_token
+        +String category
+        +String description
+        +String status
+        +Integer tier
+        +Boolean is_anonymous
+        +DateTime created_at
+    }
+
+    class AuditLog {
+        +Integer log_id
+        +String ticket_id
+        +String prev_hash
+        +String current_hash
+        +String action
+        +DateTime timestamp
+    }
+
+    class StatusController {
+        +transition_to_review()
+        +transition_to_escalated()
+        +transition_to_resolved()
+    }
+
+    ComplaintLog "1" *-- "1..*" AuditLog : logs history
+    StatusController --> ComplaintLog : updates status
