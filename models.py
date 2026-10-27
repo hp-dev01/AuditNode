@@ -30,6 +30,7 @@ class Greivances(Base):
     visibility: Mapped[Visible]
     token: Mapped[Optional[str]] = mapped_column(String(64),nullable = True, unique=True)
     status: Mapped[str] = mapped_column(String, default="Submitted", nullable=False)
+    deadline_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
 class AuditLog(Base):
     __tablename__ = 'audit_log'
@@ -38,7 +39,7 @@ class AuditLog(Base):
     old_status: Mapped[str] = mapped_column()
     new_status: Mapped[str] = mapped_column()
     timestamp: Mapped[datetime] = mapped_column(DateTime,default=datetime.utcnow)
-    prev_hash: Mapped[str] = mapped_column(unique=True)
+    prev_hash: Mapped[str] = mapped_column()
     curr_hash: Mapped[str] = mapped_column(unique=True)
 
 # To verify my models
