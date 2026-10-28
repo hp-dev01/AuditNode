@@ -12,6 +12,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import asyncio
 import json
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from pathlib import Path
 
 app = FastAPI()
 
@@ -28,6 +31,16 @@ app = FastAPI(lifespan=lifespan)
 class transition_request(BaseModel):
     new_status: Status
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*","null"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+@app.get("/")
+def read_index():
+    return FileResponse("index.html")
 class Item(BaseModel):
     category: str
     description: str
@@ -132,7 +145,10 @@ def create_complaint(data: Item,db: Session = Depends(get_db)):
         "id": new_complaint.id,
         "message": "Complaint submitted successfully",
         "receipt": receipt
-    }   
+    }
+@app.get("/complaints")
+def get_complaints(db: Session = Depends(get_db)):
+    return db.query(Greivances).all()   
 
 @app.patch("/complaints/{complaint_id}/transition")
 def transition_status(
@@ -201,7 +217,7 @@ def verification(complaint_id: int, db: Session =Depends(get_db)):
 
         expected_prev_hash = log.curr_hash
 
-    return {"tamper_detected": False, "status": "Audit chain intact", "total_records": len(logs)}
+    return {"tamper_detected": False, "status": "Audit chain intact", "total_records": len(logs),"complaint_id": complaint_id}
 
 @app.get("/events")
 async def sse_events():

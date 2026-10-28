@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Grievance Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-8">
+    <div class="max-w-4xl mx-auto space-y-6">
+        <header class="border-b border-slate-700 pb-4">
+            <h1 class="text-2xl font-bold">Grievance Portal</h1>
+            <p class="text-sm text-slate-400">Cryptographic Audit Ledger & SLA Tracker</p>
+        </header>
+        <section class="bg-slate-800 border border-slate-700 p-4 rounded-lg">
+            <h2 class="text-base font-semibold mb-3">Submit Grievance</h2>
+            <form class="flex flex-wrap gap-3 items-center">
+  <input 
+    type="text" 
+    placeholder="Enter grievance description..." 
+    class="flex-1 min-w-[240px] px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-100 focus:outline-none focus:border-indigo-500"
+    required
+  />
+
+  <select id="categorySelect" class="px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-100 focus:outline-none">
+    <option value="Hostel">Hostel</option>
+    <option value="Academic">Academic</option>
+    <option value="Maintenance">Maintenance</option>
+    <option value="General">General</option>
+  </select>
+
+  <select id="visibilitySelect" class="px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-100 focus:outline-none">
+    <option value="Anonymous">Anonymous</option>
+    <option value="Identified">Identified</option>
+  </select>
+
+  <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded transition-colors">
+    Submit
+  </button>
+</form>
+        </section>
+        <section class="bg-slate-800 border border-slate-700 rounded-lg p-4 overflow-hidden">
+            <h2 class="text-base font-semibold mb-3">Active Complaints</h2>
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-900/50 text-slate-400 text-xs uppercase border-b border-slate-700"> 
+                    <tr>
+                        <th class="p-3">ID</th>
+                        <th class="p-3">Title</th>
+                        <th class="p-3">Status</th>
+                        <th class="p-3">Deadline</th>
+                        <th class="p-3">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="ticketTable" class="divide-y divide-slate-700">
+                    
+                </tbody>
+            </table>
+        </section>
+    </div>
+</body>
+<script>
+        const API_BASE = "http://127.0.0.1:8000";
+
+        async function loadTickets() {
+            try {
+                const res = await fetch(`${API_BASE}/complaints`);
+                const data = await res.json();
+                console.log("Complaints received from server:", data);
+                const tbody = document.getElementById("ticketTable");
+    tbody.innerHTML = "";
+
+    data.forEach((ticket) => {
+      const tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-700/50 transition-colors";
+
+      tr.innerHTML = `
+        <td class="p-3 font-mono text-xs text-slate-400">${ticket.id}</td>
+        <td class="p-3 font-medium text-slate-200">${ticket.title || ticket.description || "N/A"}</td>
+        <td class="p-3">
+          <span class="px-2 py-0.5 rounded text-xs font-medium ${
+            ticket.status === 'Resolved' 
+              ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' 
+              : 'bg-amber-950 text-amber-400 border border-amber-800'
+          }">
+            ${ticket.status}
+          </span>
+        </td>
+        <td class="p-3 text-xs text-slate-400">${ticket.deadline || ticket.created_at || "—"}</td>
+        <td class="p-3">
+          <button 
+            onclick="verifyChain(${ticket.id})" 
+            class="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 rounded transition-colors">
+            Verify Hash
+          </button>
+        </td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+            } catch (err) {
+                console.error("Failed to fetch complaints:", err);
+            }
+        }
+
+        // Call the function as soon as the script loads
+        loadTickets();
+
+        async function verifyChain(complaintId) {
+  try {
+    const res = await fetch(`${API_BASE}/audit/verify/${complaintId}`);
+    const result = await res.json();
+    console.log("Verification result:", result);
+    if (res.ok && result.tamper_detected === false) {
+      alert(`Ticket #${complaintId}: ${result.status}! (${result.total_records} records verified)`);
+    }else {
+      const msg = result.detail || result.status || "Chain verification failed or mismatch detected.";
+      alert(`Ticket #${complaintId} Warning: ${msg}`);
+    }
+  } catch (err) {
+    console.error("Verification error:", err);
+    alert(`Error verifying ticket #${complaintId}`);
+  }
+}
+    document.querySelector("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const input = document.querySelector('input[type="text"]');
+  const catSelect = document.getElementById("categorySelect");
+  const visSelect = document.getElementById("visibilitySelect");
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/complaints`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: text,
+        category: catSelect.value,
+        visibility: visSelect.value,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      input.value = "";
+      
+      // If the backend returned an anonymous receipt token, display it clearly[cite: 11]
+      if (data.receipt) {
+        alert(`Complaint #${data.id} submitted!\n\nYOUR ANONYMOUS RECEIPT TOKEN:\n${data.receipt}\n\nSave this token to track your complaint later.`);
+      } else {
+        alert(`Complaint #${data.id} submitted successfully!`);
+      }
+
+      await loadTickets();
+    } else {
+      const err = await res.json();
+      alert(`Submission failed: ${JSON.stringify(err.detail || err)}`);
+    }
+  } catch (err) {
+    console.error("Submission error:", err);
+  }
+});
+    </script> 
+</html>
